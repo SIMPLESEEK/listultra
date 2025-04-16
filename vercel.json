@@ -1,0 +1,15 @@
+{
+  "buildCommand": "npm run build",
+  "framework": "nextjs",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ],
+  "env": {
+    "NEXTAUTH_URL": "https://listgenius.vercel.app",
+    "MONGODB_URI": "mongodb+srv://liuyanjiang:XpFEZMF9PVKqpNgE@clusterrvs.uvrdy.mongodb.net/calender/todugenius?retryWrites=true&w=majority&appName=ClusterRVS",
+    "NEXTAUTH_SECRET": "a-very-secret-token-for-production"
+  }
+} 

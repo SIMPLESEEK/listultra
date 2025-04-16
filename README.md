@@ -1,36 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ListGenius - 智能待办事项管理器
 
-## Getting Started
+一个功能强大的待办事项管理工具，支持分类、优先级和评论。适配PC和移动端。
 
-First, run the development server:
+## 功能特点
+
+- 用户认证（支持手机号/邮箱登录）
+- 创建多个待办事项列表
+- 支持4种待办事项状态（重要、普通、进行中、已完成）
+- 待办事项评论功能
+- 响应式设计，支持PC和移动端
+- 数据存储在MongoDB Atlas
+
+## 技术栈
+
+- Next.js 14 (App Router)
+- TypeScript
+- MongoDB & Mongoose
+- NextAuth.js（认证）
+- Tailwind CSS（样式）
+- Vercel（部署）
+
+## 本地开发
+
+### 环境变量设置
+
+创建`.env.local`文件并设置以下变量：
+
+```
+# MongoDB连接
+MONGODB_URI=mongodb+srv://your-username:your-password@clusterrvs.uvrdy.mongodb.net/calender/todugenius
+
+# NextAuth配置
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-nextauth-secret
+```
+
+### 安装依赖
+
+```bash
+npm install
+```
+
+### 启动开发服务器
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+访问 http://localhost:3000 查看应用。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 部署到Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. 在Vercel上创建新项目
+2. 连接到GitHub存储库
+3. 设置环境变量（同上述`.env.local`中的内容）
+4. 部署应用
 
-## Learn More
+## 数据模型
 
-To learn more about Next.js, take a look at the following resources:
+应用使用以下数据模型：
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. 待办事项面板（TodoBoard）
+   - 用户ID
+   - 列表集合
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. 待办事项列表（TodoColumn）
+   - 标题
+   - 排序顺序
+   - 待办事项集合
 
-## Deploy on Vercel
+3. 待办事项（Todo）
+   - 内容
+   - 状态（重要、普通、进行中、已完成）
+   - 评论
+   - 创建和更新时间
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 使用帮助
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. 登录系统（使用手机号或邮箱登录）
+2. 在主界面上，您可以：
+   - 创建新的列表
+   - 添加待办事项到列表中
+   - 设置待办事项的状态和添加评论
+   - 编辑和删除列表或待办事项
+3. 在移动端，使用顶部的标签切换不同的列表，或查看"全部"视图
+
+## 关于测试账号
+
+任意手机号或邮箱都可以登录，密码统一使用：password
+例如：
+- 手机号：13800138000，密码：password
+- 邮箱：test@example.com，密码：password
