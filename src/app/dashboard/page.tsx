@@ -4,7 +4,15 @@ import { useEffect, useState, useReducer, useMemo } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { FiPlus, FiColumns, FiList, FiMove } from 'react-icons/fi';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { 
+  DragDropContext, 
+  Droppable, 
+  Draggable, 
+  DropResult, 
+  DroppableProvided,
+  DraggableProvided,
+  DraggableStateSnapshot
+} from '@hello-pangea/dnd';
 import TodoColumn from '@/components/TodoColumn';
 import { ITodoBoard, ITodoColumn, ITodo } from '@/models/TodoList';
 import { cn } from '@/lib/utils';
@@ -369,41 +377,84 @@ export default function Dashboard() {
     });
   }, [todoBoard]);
 
+  const handleDragStart = () => {
+    setIsDragging(true);
+  };
+
   const handleDragEnd = async (result: DropResult) => {
-    console.log('进入 handleDragEnd 函数 (Reducer)');
     setIsDragging(false);
+    const { source, destination, type } = result;
 
-    if (!result.destination || !todoBoard) {
+    if (!destination) return;
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
       return;
     }
 
-    if (result.destination.index === result.source.index) {
+    if (!todoBoard) return;
+
+    if (type === 'COLUMN') {
+      const newColumns = Array.from(todoBoard.columns);
+      const [movedColumn] = newColumns.splice(source.index, 1);
+      newColumns.splice(destination.index, 0, movedColumn);
+
+      const updatedColumnsWithOrder = newColumns.map((col, index) => ({
+        ...col,
+        order: index,
+      }));
+
+      dispatch({ type: 'REORDER_COLUMNS', payload: updatedColumnsWithOrder });
+
+      const newState = { ...todoBoard, columns: updatedColumnsWithOrder };
+      await saveBoardToServer(newState);
       return;
     }
 
-    const currentColumns = todoBoard.columns;
-    const newColumns = Array.from(currentColumns);
-    const [movedColumn] = newColumns.splice(result.source.index, 1);
-    newColumns.splice(result.destination.index, 0, movedColumn);
+    const sourceColumn = todoBoard.columns.find(col => col._id === source.droppableId);
+    const destColumn = todoBoard.columns.find(col => col._id === destination.droppableId);
 
-    const updatedColumnsWithOrder = newColumns.map((column, index) => ({
-      ...column,
-      order: index,
-    }));
+    if (!sourceColumn || !destColumn) return;
 
-    const originalColumns = [...todoBoard.columns];
+    const sourceTodos = Array.isArray(sourceColumn.todos) ? [...sourceColumn.todos] : [];
+    const destTodos = Array.isArray(destColumn.todos) ? [...destColumn.todos] : [];
+    const [movedTodo] = sourceTodos.splice(source.index, 1);
 
-    dispatch({ type: 'REORDER_COLUMNS', payload: updatedColumnsWithOrder });
+    if (source.droppableId === destination.droppableId) {
+      sourceTodos.splice(destination.index, 0, movedTodo);
+      const updatedColumn = { ...sourceColumn, todos: sourceTodos };
+      if (sourceColumn._id) { 
+        dispatch({ type: 'UPDATE_COLUMN', payload: { columnId: sourceColumn._id, data: { todos: sourceTodos } } });
+        const newState = {
+          ...todoBoard,
+          columns: todoBoard.columns.map(col => col._id === sourceColumn._id ? updatedColumn : col),
+        };
+        await saveBoardToServer(newState);
+      } else {
+        console.error('Source column ID is missing during dispatch!');
+      }
+    } else {
+      destTodos.splice(destination.index, 0, movedTodo);
+      const updatedSourceColumn = { ...sourceColumn, todos: sourceTodos };
+      const updatedDestColumn = { ...destColumn, todos: destTodos };
 
-    const boardStateAfterReorder = { ...todoBoard, columns: updatedColumnsWithOrder };
+      if (sourceColumn._id && destColumn._id) {
+        dispatch({ type: 'UPDATE_COLUMN', payload: { columnId: sourceColumn._id, data: { todos: sourceTodos } } });
+        dispatch({ type: 'UPDATE_COLUMN', payload: { columnId: destColumn._id, data: { todos: destTodos } } });
 
-    try {
-      await saveBoardToServer(boardStateAfterReorder);
-      console.log('列表顺序已更新 (Reducer)');
-    } catch (error) {
-      console.error('保存列表顺序失败 (Reducer):', error);
-      alert('更新列表顺序失败，请重试');
-      dispatch({ type: 'REORDER_COLUMNS', payload: originalColumns });
+        const newState = {
+          ...todoBoard,
+          columns: todoBoard.columns.map(col => {
+            if (col._id === sourceColumn._id) return updatedSourceColumn;
+            if (col._id === destColumn._id) return updatedDestColumn;
+            return col;
+          }),
+        };
+        await saveBoardToServer(newState);
+      } else {
+         console.error('Source or Destination column ID is missing during dispatch!');
+      }
     }
   };
 
@@ -512,75 +563,41 @@ export default function Dashboard() {
         <div className="hidden md:block">
           {pcViewMode === 'columns' ? (
             <DragDropContext 
-              onDragStart={() => {
-                console.log('拖拽开始！');
-                setIsDragging(true);
-              }}
-              onDragEnd={(result) => {
-                console.log('拖拽结束！Result:', result);
-                handleDragEnd(result);
-              }}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
             >
-              <Droppable 
-                droppableId="columns" 
-                direction="horizontal" 
-                type="column" 
-                isDropDisabled={false}
-                isCombineEnabled={false}
-                ignoreContainerClipping={true}
-              >
-                {(provided) => (
-                  <div 
+              <Droppable droppableId="board" direction="horizontal" type="COLUMN">
+                {(provided: DroppableProvided) => (
+                  <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className="flex flex-wrap gap-6 pb-4"
+                    className="flex space-x-4 pb-4 overflow-x-auto min-h-[100px] items-start"
                   >
                     {todoBoard?.columns
                       .slice()
                       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                       .map((column, index) => (
-                      <Draggable 
-                        key={column._id || `column-${index}`} 
-                        draggableId={column._id?.toString() || `column-${index}`} 
-                        index={index}
-                      >
-                        {(providedDraggable, snapshot) => (
+                      <Draggable key={column._id} draggableId={column._id} index={index}>
+                        {(providedDraggable: DraggableProvided, snapshot: DraggableStateSnapshot) => (
                           <div
                             ref={providedDraggable.innerRef}
                             {...providedDraggable.draggableProps}
-                            className={`${snapshot.isDragging ? 'opacity-70' : ''}`}
+                            className={`flex-shrink-0 w-72 ${snapshot.isDragging ? 'opacity-90 shadow-lg' : ''}`}
                           >
-                            <div className="relative">
-                              <div
-                                {...providedDraggable.dragHandleProps}
-                                className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-10 bg-transparent cursor-move rounded-t-md hover:bg-gray-100/50 z-10 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
-                              >
-                                <FiMove className="text-gray-400" />
-                              </div>
-                              <TodoColumn
-                                column={column}
-                                onUpdateColumn={handleUpdateColumn}
-                                onDeleteColumn={handleDeleteColumn}
-                                onAddTodo={handleAddTodo}
-                                onEditTodo={handleEditTodo}
-                                onDeleteTodo={handleDeleteTodo}
-                              />
-                            </div>
+                            <TodoColumn
+                              column={column}
+                              onUpdateColumn={handleUpdateColumn}
+                              onDeleteColumn={handleDeleteColumn}
+                              onAddTodo={handleAddTodo}
+                              onEditTodo={handleEditTodo}
+                              onDeleteTodo={handleDeleteTodo}
+                              dragHandleProps={providedDraggable.dragHandleProps}
+                            />
                           </div>
                         )}
                       </Draggable>
                     ))}
                     {provided.placeholder}
-                    
-                    <div className="flex-shrink-0">
-                      <button
-                        onClick={handleAddColumn}
-                        className="flex flex-col items-center justify-center border border-dashed rounded-md bg-white w-64 min-h-96 text-gray-500 hover:text-blue-500 hover:border-blue-500 flex-shrink-0"
-                      >
-                        <FiPlus size={24} className="mb-2" />
-                        <span>添加新列表</span>
-                      </button>
-                    </div>
                   </div>
                 )}
               </Droppable>

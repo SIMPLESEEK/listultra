@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { ITodo, ITodoColumn } from '@/models/TodoList';
 import TodoItem from './TodoItem';
+import { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 
 interface TodoColumnProps {
   column: ITodoColumn;
@@ -12,6 +13,7 @@ interface TodoColumnProps {
   onAddTodo: (columnId: string, todo: Omit<ITodo, '_id'>) => void;
   onEditTodo: (columnId: string, todoId: string, todo: Partial<ITodo>) => void;
   onDeleteTodo: (columnId: string, todoId: string) => void;
+  dragHandleProps?: DraggableProvidedDragHandleProps | null | undefined;
 }
 
 export default function TodoColumn({
@@ -21,6 +23,7 @@ export default function TodoColumn({
   onAddTodo,
   onEditTodo,
   onDeleteTodo,
+  dragHandleProps,
 }: TodoColumnProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState(column.title);
@@ -62,7 +65,7 @@ export default function TodoColumn({
 
   return (
     <div className="flex flex-col border rounded-md bg-gray-50 w-full md:w-64 min-h-96 max-h-[calc(100vh-200px)] overflow-hidden flex-shrink-0">
-      <div className="flex justify-between items-center p-3 border-b bg-white">
+      <div {...dragHandleProps} className="flex justify-between items-center p-3 border-b bg-white cursor-grab">
         {isEditingTitle ? (
           <div className="flex w-full">
             <input

@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@hello-pangea/dnd": "^16.6.0",
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
@@ -16,7 +17,6 @@
     "next": "15.3.0",
     "next-auth": "^4.24.11",
     "react": "^19.0.0",
-    "react-beautiful-dnd": "^13.1.1",
     "react-dom": "^19.0.0",
     "react-icons": "^5.5.0",
     "tailwind-merge": "^3.2.0"
@@ -28,7 +28,6 @@
     "@types/next-auth": "^3.13.0",
     "@types/node": "^20",
     "@types/react": "^19",
-    "@types/react-beautiful-dnd": "^13.1.8",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.3.0",
