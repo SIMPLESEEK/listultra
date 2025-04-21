@@ -13,20 +13,20 @@ export const authOptions: NextAuthOptions = {
         password: { label: '密码', type: 'password' }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials.password) {
-          console.log('Authorize: Missing credentials');
+        if (!credentials?.email || !credentials?.password) {
+          // console.log('Authorize: Missing credentials');
           return null;
         }
 
         try {
           await connectDB();
-          console.log('Authorize: DB connected');
+          // console.log('Authorize: DB connected');
           
           const user = await User.findOne({ email: credentials.email });
-          console.log('Authorize: User found? ', !!user);
+          // console.log('Authorize: User found? ', !!user);
 
           if (!user) {
-            console.log('Authorize: User not found with email', credentials.email);
+            // console.log('Authorize: User not found with email', credentials.email);
             return null;
           }
 
@@ -34,18 +34,15 @@ export const authOptions: NextAuthOptions = {
             credentials.password,
             user.passwordHash
           );
-          console.log('Authorize: Password correct? ', isPasswordCorrect);
+          // console.log('Authorize: Password correct? ', isPasswordCorrect);
 
           if (!isPasswordCorrect) {
-             console.log('Authorize: Incorrect password');
+            // console.log('Authorize: Incorrect password');
             return null;
           }
           
-          console.log('Authorize: Success, returning user');
-          return {
-            id: user._id.toString(),
-            email: user.email,
-          };
+          // console.log('Authorize: Success, returning user');
+          return user;
 
         } catch (error) {
           console.error('Authorize error:', error);

@@ -18,11 +18,9 @@ export default function LoginPage() {
     try {
       const result = await signIn('credentials', {
         redirect: false,
-        email: email,
-        password: password,
+        email,
+        password,
       });
-
-      console.log('Sign in result:', result);
 
       if (result?.error) {
         setError('邮箱或密码无效');
@@ -31,7 +29,6 @@ export default function LoginPage() {
       }
       
       if (result?.ok && !result?.error) {
-        console.log('Sign in successful, redirecting to dashboard...');
         router.push('/dashboard');
       } else {
         setError('登录失败，请稍后重试');

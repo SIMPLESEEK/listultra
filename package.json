@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@hello-pangea/dnd": "^16.6.0",
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",

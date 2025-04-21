@@ -43,15 +43,18 @@ export async function POST(req: NextRequest) {
 
     await newUser.save();
 
-    console.log('新用户注册成功:', email);
+    // console.log('新用户注册成功:', email);
     return NextResponse.json({ message: '用户注册成功' }, { status: 201 }); // 201 Created
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('注册失败:', error);
     // 处理可能的数据库错误，例如唯一性约束失败（虽然我们已经检查过）
-    if (error.code === 11000) { 
+    // Type guard for MongoDB duplicate key error
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 11000) { 
         return NextResponse.json({ error: '该邮箱已被注册' }, { status: 409 });
     }
-    return NextResponse.json({ error: '服务器内部错误', details: error.message }, { status: 500 });
+    // Type guard for standard Error objects
+    const errorMessage = error instanceof Error ? error.message : '未知错误';
+    return NextResponse.json({ error: '服务器内部错误', details: errorMessage }, { status: 500 });
   }
 } 

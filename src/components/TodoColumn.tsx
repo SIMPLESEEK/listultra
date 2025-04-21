@@ -1,10 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { ITodo, ITodoColumn } from '@/models/TodoList';
 import TodoItem from './TodoItem';
-import { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 
 interface TodoColumnProps {
   column: ITodoColumn;
@@ -13,7 +12,9 @@ interface TodoColumnProps {
   onAddTodo: (columnId: string, todo: Omit<ITodo, '_id'>) => void;
   onEditTodo: (columnId: string, todoId: string, todo: Partial<ITodo>) => void;
   onDeleteTodo: (columnId: string, todoId: string) => void;
-  dragHandleProps?: DraggableProvidedDragHandleProps | null | undefined;
+  onMoveColumn: (columnId: string, direction: 'left' | 'right') => void;
+  isFirst: boolean;
+  isLast: boolean;
 }
 
 export default function TodoColumn({
@@ -23,7 +24,9 @@ export default function TodoColumn({
   onAddTodo,
   onEditTodo,
   onDeleteTodo,
-  dragHandleProps,
+  onMoveColumn,
+  isFirst,
+  isLast,
 }: TodoColumnProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState(column.title);
@@ -65,7 +68,7 @@ export default function TodoColumn({
 
   return (
     <div className="flex flex-col border rounded-md bg-gray-50 w-full md:w-64 min-h-96 max-h-[calc(100vh-200px)] overflow-hidden flex-shrink-0">
-      <div {...dragHandleProps} className="flex justify-between items-center p-3 border-b bg-white cursor-grab">
+      <div className="flex justify-between items-center p-3 border-b bg-white">
         {isEditingTitle ? (
           <div className="flex w-full">
             <input
@@ -84,7 +87,27 @@ export default function TodoColumn({
           </div>
         ) : (
           <>
-            <h3 className="font-medium">{column.title}</h3>
+            <div className="flex items-center">
+                <button
+                  onClick={() => onMoveColumn(column._id as string, 'left')}
+                  disabled={isFirst}
+                  className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                  aria-label="向左移动列表"
+                >
+                    <FiChevronLeft size={18} />
+                </button>
+                <button
+                  onClick={() => onMoveColumn(column._id as string, 'right')}
+                  disabled={isLast}
+                  className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                  aria-label="向右移动列表"
+                >
+                    <FiChevronRight size={18} />
+                </button>
+            </div>
+            
+            <h3 className="font-medium text-center flex-shrink mx-1 truncate">{column.title}</h3>
+            
             <div className="flex gap-1">
               <button
                 onClick={() => setIsEditingTitle(true)}

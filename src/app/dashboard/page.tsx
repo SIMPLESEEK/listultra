@@ -3,16 +3,7 @@
 import { useEffect, useState, useReducer, useMemo } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { FiPlus, FiColumns, FiList, FiMove } from 'react-icons/fi';
-import { 
-  DragDropContext, 
-  Droppable, 
-  Draggable, 
-  DropResult, 
-  DroppableProvided,
-  DraggableProvided,
-  DraggableStateSnapshot
-} from '@hello-pangea/dnd';
+import { FiColumns, FiList, FiMove, FiPlus, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import TodoColumn from '@/components/TodoColumn';
 import { ITodoBoard, ITodoColumn, ITodo } from '@/models/TodoList';
 import { cn } from '@/lib/utils';
@@ -120,7 +111,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [pcViewMode, setPcViewMode] = useState<'columns' | 'all'>('columns');
-  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -139,21 +129,18 @@ export default function Dashboard() {
         console.error('API错误:', errorData);
         throw new Error(errorData.error || '加载失败');
       }
-      const data = await response.json();
-      console.log('获取到的数据:', data);
+      const data: ITodoBoard = await response.json();
       dispatch({ type: 'SET_BOARD', payload: data });
 
-      // Set active tab based on fetched data
-      // Use a separate effect or ensure state update cycle completes
-      // For now, let's assume the dispatch updates state and triggers re-render
-      // which should then correctly use the activeTab state set below.
-      if (data.columns && data.columns.length > 0 && data.columns[0]?._id) {
-        setActiveTab(data.columns[0]._id);
+      const firstColumnId = data.columns?.[0]?._id;
+      if (typeof firstColumnId === 'string') {
+        // @ts-ignore - Bypassing strict type check as logic ensures string or fallback
+        setActiveTab(firstColumnId); 
       } else {
-        setActiveTab('all'); // Default if no columns
+        setActiveTab('all');
       }
-    } catch (error) {
-      console.error('获取待办事项失败:', error);
+    } catch (error: unknown) {
+      console.error('获取待办事项失败:', error instanceof Error ? error.message : error);
     } finally {
       setLoading(false);
     }
@@ -174,49 +161,17 @@ export default function Dashboard() {
         throw new Error(errorData.error || '保存失败');
       }
 
-      const savedData = await response.json();
-      console.log('保存成功:', savedData);
+      const savedData: ITodoBoard = await response.json();
       dispatch({ type: 'SET_BOARD', payload: savedData });
       return savedData;
-    } catch (error) {
-      console.error('保存失败:', error);
+    } catch (error: unknown) {
+      console.error('保存失败:', error instanceof Error ? error.message : error);
       alert('操作失败，请刷新页面后重试');
       throw error;
     }
   };
 
-  const handleAddColumn = async () => {
-    if (!todoBoard) return;
-    
-    const tempId = `column-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const newColumn: ITodoColumn = {
-      _id: tempId,
-      title: '新建列表',
-      todos: [],
-      order: todoBoard.columns.length,
-    };
-    
-    dispatch({ type: 'ADD_COLUMN', payload: newColumn });
-    setActiveTab(tempId);
-    
-    const boardStateAfterAdd = boardReducer(todoBoard, { type: 'ADD_COLUMN', payload: newColumn });
-
-    if (boardStateAfterAdd) {
-      try {
-        await saveBoardToServer(boardStateAfterAdd);
-      } catch (error) {
-        console.error("Add column failed, potential state mismatch");
-        alert('添加列表失败，请刷新重试');
-        dispatch({ type: 'DELETE_COLUMN', payload: tempId });
-        if (activeTab === tempId) {
-          setActiveTab(todoBoard.columns.length > 0 ? todoBoard.columns[0]._id ?? 'all' : 'all');
-        }
-      }
-    }
-  };
-
   const handleUpdateColumn = async (columnId: string, data: Partial<ITodoColumn>) => {
-    console.log('handleUpdateColumn called with:', columnId, data);
     if (!todoBoard) return;
     
     const originalColumn = todoBoard.columns.find(col => col._id === columnId);
@@ -229,8 +184,8 @@ export default function Dashboard() {
     if (boardStateAfterUpdate) {
       try {
         await saveBoardToServer(boardStateAfterUpdate);
-      } catch (error) {
-        console.error("Update column failed");
+      } catch (error: unknown) {
+        console.error("Update column failed", error instanceof Error ? error.message : error);
         alert('更新列表失败，请刷新重试');
         dispatch({ type: 'UPDATE_COLUMN', payload: { columnId, data: originalColumn } });
       }
@@ -238,7 +193,6 @@ export default function Dashboard() {
   };
 
   const handleDeleteColumn = async (columnId: string) => {
-    console.log('handleDeleteColumn called with:', columnId);
     if (!todoBoard) return;
     
     const columnToDelete = todoBoard.columns.find(col => col._id === columnId);
@@ -262,8 +216,8 @@ export default function Dashboard() {
     if (boardStateAfterDelete) {
       try {
         await saveBoardToServer(boardStateAfterDelete);
-      } catch (error) {
-        console.error('删除列表失败:', error);
+      } catch (error: unknown) {
+        console.error('删除列表失败:', error instanceof Error ? error.message : error);
         alert('删除列表失败，请刷新页面后重试');
         dispatch({ type: 'SET_BOARD', payload: { ...todoBoard, columns: originalColumns } });
         if (activeTab === columnId) {
@@ -275,12 +229,11 @@ export default function Dashboard() {
         }
       }
     } else {
-      console.log("Board might be empty after delete, ensure API/reducer handles this.");
       try {
         const emptyBoardState = { ...todoBoard, columns: [] };
         await saveBoardToServer(emptyBoardState);
-      } catch (error) {
-        console.error('删除最后一个列表时保存失败:', error);
+      } catch (error: unknown) {
+        console.error('删除最后一个列表时保存失败:', error instanceof Error ? error.message : error);
         alert('删除列表失败，请刷新页面后重试');
         dispatch({ type: 'SET_BOARD', payload: { ...todoBoard, columns: originalColumns } });
       }
@@ -305,8 +258,8 @@ export default function Dashboard() {
     if (boardStateAfterAdd) {
       try {
         await saveBoardToServer(boardStateAfterAdd);
-      } catch (error) {
-        console.error("Add todo failed");
+      } catch (error: unknown) {
+        console.error("Add todo failed", error instanceof Error ? error.message : error);
         alert('添加待办事项失败，请刷新重试');
         dispatch({ type: 'DELETE_TODO', payload: { columnId, todoId: tempId } });
       }
@@ -327,8 +280,8 @@ export default function Dashboard() {
     if (boardStateAfterUpdate) {
       try {
         await saveBoardToServer(boardStateAfterUpdate);
-      } catch (error) {
-        console.error("Edit todo failed");
+      } catch (error: unknown) {
+        console.error("Edit todo failed", error instanceof Error ? error.message : error);
         alert('编辑待办事项失败，请刷新重试');
         dispatch({ type: 'UPDATE_TODO', payload: { columnId, todoId, data: originalTodo } });
       }
@@ -349,8 +302,8 @@ export default function Dashboard() {
     if (boardStateAfterDelete) {
       try {
         await saveBoardToServer(boardStateAfterDelete);
-      } catch (error) {
-        console.error("Delete todo failed");
+      } catch (error: unknown) {
+        console.error("Delete todo failed", error instanceof Error ? error.message : error);
         alert('删除待办事项失败，请刷新重试');
         dispatch({ type: 'ADD_TODO', payload: { columnId, todo: originalTodo } });
       }
@@ -377,84 +330,63 @@ export default function Dashboard() {
     });
   }, [todoBoard]);
 
-  const handleDragStart = () => {
-    setIsDragging(true);
+  const handleAddColumn = async () => {
+    if (!todoBoard) return;
+    
+    const tempId = `column-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const newColumn: ITodoColumn = {
+      _id: tempId,
+      title: '新建列表',
+      todos: [],
+      order: todoBoard.columns.length > 0 ? Math.max(...todoBoard.columns.map(c => c.order ?? 0)) + 1 : 0,
+    };
+    
+    dispatch({ type: 'ADD_COLUMN', payload: newColumn });
+    setActiveTab(tempId);
+    
+    const boardStateAfterAdd = boardReducer(todoBoard, { type: 'ADD_COLUMN', payload: newColumn });
+
+    if (boardStateAfterAdd) {
+      try {
+        await saveBoardToServer(boardStateAfterAdd);
+      } catch (error: unknown) {
+        console.error("Add column failed", error instanceof Error ? error.message : error);
+        alert('添加列表失败，请刷新重试');
+        dispatch({ type: 'DELETE_COLUMN', payload: tempId });
+        if (activeTab === tempId) {
+          setActiveTab(todoBoard.columns.length > 0 ? todoBoard.columns[0]._id ?? 'all' : 'all');
+        }
+      }
+    }
   };
 
-  const handleDragEnd = async (result: DropResult) => {
-    setIsDragging(false);
-    const { source, destination, type } = result;
+  const handleMoveColumn = async (columnId: string, direction: 'left' | 'right') => {
+    if (!todoBoard || todoBoard.columns.length < 2) return;
 
-    if (!destination) return;
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
-      return;
-    }
+    const columns = [...todoBoard.columns].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    const currentIndex = columns.findIndex(col => col._id === columnId);
 
-    if (!todoBoard) return;
+    if (currentIndex === -1) return;
 
-    if (type === 'COLUMN') {
-      const newColumns = Array.from(todoBoard.columns);
-      const [movedColumn] = newColumns.splice(source.index, 1);
-      newColumns.splice(destination.index, 0, movedColumn);
+    let targetIndex = currentIndex + (direction === 'left' ? -1 : 1);
 
-      const updatedColumnsWithOrder = newColumns.map((col, index) => ({
-        ...col,
-        order: index,
-      }));
+    if (targetIndex < 0 || targetIndex >= columns.length) return;
 
-      dispatch({ type: 'REORDER_COLUMNS', payload: updatedColumnsWithOrder });
+    const newOrderedColumns = Array.from(columns);
+    const [movedColumn] = newOrderedColumns.splice(currentIndex, 1);
+    newOrderedColumns.splice(targetIndex, 0, movedColumn);
 
-      const newState = { ...todoBoard, columns: updatedColumnsWithOrder };
+    const finalColumns = newOrderedColumns.map((col, index) => ({ ...col, order: index }));
+
+    dispatch({ type: 'REORDER_COLUMNS', payload: finalColumns });
+
+    const newState = { ...todoBoard, columns: finalColumns };
+    try {
       await saveBoardToServer(newState);
-      return;
-    }
-
-    const sourceColumn = todoBoard.columns.find(col => col._id === source.droppableId);
-    const destColumn = todoBoard.columns.find(col => col._id === destination.droppableId);
-
-    if (!sourceColumn || !destColumn) return;
-
-    const sourceTodos = Array.isArray(sourceColumn.todos) ? [...sourceColumn.todos] : [];
-    const destTodos = Array.isArray(destColumn.todos) ? [...destColumn.todos] : [];
-    const [movedTodo] = sourceTodos.splice(source.index, 1);
-
-    if (source.droppableId === destination.droppableId) {
-      sourceTodos.splice(destination.index, 0, movedTodo);
-      const updatedColumn = { ...sourceColumn, todos: sourceTodos };
-      if (sourceColumn._id) { 
-        dispatch({ type: 'UPDATE_COLUMN', payload: { columnId: sourceColumn._id, data: { todos: sourceTodos } } });
-        const newState = {
-          ...todoBoard,
-          columns: todoBoard.columns.map(col => col._id === sourceColumn._id ? updatedColumn : col),
-        };
-        await saveBoardToServer(newState);
-      } else {
-        console.error('Source column ID is missing during dispatch!');
-      }
-    } else {
-      destTodos.splice(destination.index, 0, movedTodo);
-      const updatedSourceColumn = { ...sourceColumn, todos: sourceTodos };
-      const updatedDestColumn = { ...destColumn, todos: destTodos };
-
-      if (sourceColumn._id && destColumn._id) {
-        dispatch({ type: 'UPDATE_COLUMN', payload: { columnId: sourceColumn._id, data: { todos: sourceTodos } } });
-        dispatch({ type: 'UPDATE_COLUMN', payload: { columnId: destColumn._id, data: { todos: destTodos } } });
-
-        const newState = {
-          ...todoBoard,
-          columns: todoBoard.columns.map(col => {
-            if (col._id === sourceColumn._id) return updatedSourceColumn;
-            if (col._id === destColumn._id) return updatedDestColumn;
-            return col;
-          }),
-        };
-        await saveBoardToServer(newState);
-      } else {
-         console.error('Source or Destination column ID is missing during dispatch!');
-      }
+    } catch (error) {
+      console.error('Failed to save column move:', error);
+      dispatch({ type: 'REORDER_COLUMNS', payload: columns });
+      alert('移动列表失败，请刷新重试');
     }
   };
 
@@ -515,21 +447,21 @@ export default function Dashboard() {
               {column.title}
             </button>
           ))}
+          <button
+            onClick={handleAddColumn}
+            className="px-3 py-1 text-sm font-medium rounded-md bg-blue-100 text-blue-600 hover:bg-blue-200 flex items-center"
+          >
+            <FiPlus size={16} className="mr-1" /> 添加列表
+          </button>
         </div>
       </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="hidden md:flex justify-between mb-4">
-          <div className={`flex items-center text-sm text-gray-500 ${isDragging ? 'text-blue-500 font-medium' : ''}`}>
-            {isDragging ? (
-              <>
-                <FiMove className="mr-1" />
-                拖动列表以调整顺序
-              </>
-            ) : (
-              pcViewMode === 'columns' && 
+          <div className={`flex items-center text-sm text-gray-500`}>
+            {pcViewMode === 'columns' && 
               <span className="text-gray-400 italic">提示：可以拖动列表调整顺序</span>
-            )}
+            }
           </div>
 
           <div className="flex">
@@ -562,46 +494,35 @@ export default function Dashboard() {
 
         <div className="hidden md:block">
           {pcViewMode === 'columns' ? (
-            <DragDropContext 
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-            >
-              <Droppable droppableId="board" direction="horizontal" type="COLUMN">
-                {(provided: DroppableProvided) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className="flex space-x-4 pb-4 overflow-x-auto min-h-[100px] items-start"
-                  >
-                    {todoBoard?.columns
-                      .slice()
-                      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-                      .map((column, index) => (
-                      <Draggable key={column._id} draggableId={column._id} index={index}>
-                        {(providedDraggable: DraggableProvided, snapshot: DraggableStateSnapshot) => (
-                          <div
-                            ref={providedDraggable.innerRef}
-                            {...providedDraggable.draggableProps}
-                            className={`flex-shrink-0 w-72 ${snapshot.isDragging ? 'opacity-90 shadow-lg' : ''}`}
-                          >
-                            <TodoColumn
-                              column={column}
-                              onUpdateColumn={handleUpdateColumn}
-                              onDeleteColumn={handleDeleteColumn}
-                              onAddTodo={handleAddTodo}
-                              onEditTodo={handleEditTodo}
-                              onDeleteTodo={handleDeleteTodo}
-                              dragHandleProps={providedDraggable.dragHandleProps}
-                            />
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
+            <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 pb-4">
+              {todoBoard?.columns
+                .slice()
+                .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                .map((column, index) => (
+                  <div key={column._id} className="break-inside-avoid mb-4">
+                    <TodoColumn
+                      column={column}
+                      onUpdateColumn={handleUpdateColumn}
+                      onDeleteColumn={handleDeleteColumn}
+                      onAddTodo={handleAddTodo}
+                      onEditTodo={handleEditTodo}
+                      onDeleteTodo={handleDeleteTodo}
+                      onMoveColumn={handleMoveColumn}
+                      isFirst={index === 0}
+                      isLast={index === (todoBoard?.columns.length ?? 0) - 1}
+                    />
                   </div>
-                )}
-              </Droppable>
-            </DragDropContext>
+              ))}
+              <div className="break-inside-avoid mb-4">
+                <button
+                  onClick={handleAddColumn}
+                  className="flex flex-col items-center justify-center border border-dashed rounded-md bg-white w-40 h-24 text-gray-500 hover:text-blue-500 hover:border-blue-500 transition-colors duration-150 ease-in-out"
+                >
+                  <FiPlus size={24} className="mb-1" />
+                  <span className="text-sm">添加新列表</span>
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="bg-white rounded-md border p-4 lg:p-6 space-y-3 max-w-3xl mx-auto">
               <h2 className="font-medium text-lg mb-4">全部待办事项</h2>
@@ -609,23 +530,36 @@ export default function Dashboard() {
                 <div
                   key={todo._id}
                   className={cn(
-                      "border rounded-md p-3 flex justify-between items-start gap-4",
+                      "border rounded-md p-3",
                       todo.status === 'important' ? 'bg-red-50 border-red-200'
                       : todo.status === 'inProgress' ? 'bg-blue-50 border-blue-200'
                       : todo.status === 'completed' ? 'bg-gray-100 border-gray-200 text-gray-500 line-through'
                       : 'bg-white border-gray-200'
                   )}
                 >
-                  <div className="flex-1">
-                    <div className="text-sm font-medium mb-1">{todo.content}</div>
-                    <span className="inline-block bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs font-medium mb-1 mr-2">
-                      {todo.columnTitle}
-                    </span>
-                    {todo.comment && (
-                      <div className="mb-1 p-2 text-xs bg-yellow-50 border border-yellow-100 rounded-md break-words">
-                        {todo.comment}
+                  <div className="flex justify-between items-start gap-4">
+                    <div 
+                      className="flex-1 cursor-pointer hover:bg-gray-50 rounded p-1 -m-1"
+                      onClick={() => {
+                        if (todo.columnId) {
+                          setActiveTab(todo.columnId);
+                          setPcViewMode('columns');
+                        }
+                      }}
+                    >
+                      <div className="text-sm font-medium mb-1">{todo.content}</div>
+                      {todo.comment && (
+                        <div className="mt-1 p-2 text-xs bg-yellow-50 border border-yellow-100 rounded-md break-words">
+                          {todo.comment}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-shrink-0 text-right text-xs text-gray-500 space-y-1">
+                      <div>{todo.createdAt ? new Date(todo.createdAt).toLocaleString() : 'N/A'}</div>
+                      <div className="inline-block bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                        {todo.columnTitle}
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -652,26 +586,24 @@ export default function Dashboard() {
                   )}
                 >
                   <div className="flex justify-between items-start gap-2">
-                    <div className="flex-1">
+                    <div 
+                      className="flex-1 cursor-pointer hover:bg-gray-50 rounded p-1 -m-1"
+                      onClick={() => todo.columnId && setActiveTab(todo.columnId)}
+                    >
                       <div className={`text-sm font-medium mb-1 ${todo.status === 'completed' ? 'text-gray-500 line-through' : ''}`}>{todo.content}</div>
-                      <span className="inline-block bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs font-medium">
-                        {todo.columnTitle}
-                      </span>
+                      {todo.comment && (
+                        <div className="mt-1 p-2 text-xs bg-yellow-50 border border-yellow-100 rounded-md break-words">
+                          {todo.comment}
+                        </div>
+                      )}
                     </div>
-                    <div className="flex-shrink-0">
-                      <button
-                        onClick={() => todo.columnId && setActiveTab(todo.columnId)}
-                        className="text-xs px-2 py-1 bg-gray-100 rounded-md text-gray-600 hover:bg-gray-200"
-                      >
-                        编辑
-                      </button>
+                    <div className="flex-shrink-0 text-right space-y-1">
+                       <div className="text-xs text-gray-500">{todo.createdAt ? new Date(todo.createdAt).toLocaleString() : 'N/A'}</div>
+                       <div className="inline-block bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs font-medium mb-1">
+                        {todo.columnTitle}
+                       </div>
                     </div>
                   </div>
-                  {todo.comment && (
-                    <div className="mt-2 p-2 text-xs bg-yellow-50 border border-yellow-100 rounded-md break-words">
-                      {todo.comment}
-                    </div>
-                  )}
                 </div>
               ))}
               {allTodos.length === 0 && (
@@ -679,8 +611,10 @@ export default function Dashboard() {
               )}
             </div>
           ) : (
-            todoBoard?.columns.map(
-              (column) =>
+            todoBoard?.columns
+              .slice()
+              .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+              .map((column, index, sortedColumns) =>
                 activeTab === column._id && (
                   <div key={column._id} className="space-y-4">
                     <TodoColumn
@@ -690,6 +624,9 @@ export default function Dashboard() {
                       onAddTodo={handleAddTodo}
                       onEditTodo={handleEditTodo}
                       onDeleteTodo={handleDeleteTodo}
+                      onMoveColumn={handleMoveColumn}
+                      isFirst={index === 0}
+                      isLast={index === sortedColumns.length - 1}
                     />
                   </div>
                 )
