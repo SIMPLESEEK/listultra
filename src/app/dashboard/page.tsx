@@ -403,7 +403,7 @@ export default function Dashboard() {
         <header className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 flex justify-between items-center">
             <h1 className="text-lg sm:text-xl font-semibold text-gray-900 whitespace-nowrap truncate mr-2">
-              牛马一生
+              牛马的自我修养
             </h1>
             <div className="flex items-center flex-shrink-0">
               <span className="hidden sm:inline mr-2 text-sm text-gray-600 truncate">
