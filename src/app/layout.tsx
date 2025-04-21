@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: '牛马一生',
-  description: '一个简单的待办事项管理应用',
+  description: '一个精心设计的待办事项管理应用',
 };
 
 export default function RootLayout({
