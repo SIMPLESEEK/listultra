@@ -32,6 +32,9 @@ async function connectDB() {
       return cachedConnection;
     }
 
+    // Log the MONGODB_URI the function sees at runtime
+    console.log('Runtime MONGODB_URI:', process.env.MONGODB_URI);
+
     // 创建新连接
     // console.log('尝试连接MongoDB...');
     const connection = await mongoose.connect(MONGODB_URI, {
