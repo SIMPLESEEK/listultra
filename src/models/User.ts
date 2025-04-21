@@ -25,7 +25,7 @@ const UserSchema: Schema = new Schema({
   }
 });
 
-// Ensure email index for faster lookups
-UserSchema.index({ email: 1 });
+// Ensure email index for faster lookups - REMOVED as unique:true handles it.
+// UserSchema.index({ email: 1 });
 
 export default mongoose.models.User || mongoose.model<IUser>('User', UserSchema, 'users'); 

@@ -37,6 +37,13 @@ async function connectDB() {
     const connection = await mongoose.connect(MONGODB_URI, {
       bufferCommands: false,
     });
+
+    // Add diagnostic logging for the actual database name
+    if (connection.connection.db) {
+        console.log('Mongoose connected to database:', connection.connection.db.databaseName);
+    } else {
+        console.warn('Mongoose connection established, but db object is not available immediately.');
+    }
     
     // 列出所有可用集合 - 这个日志比较低级，建议移除
     /*
