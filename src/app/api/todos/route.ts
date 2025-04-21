@@ -1,27 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { cookies } from 'next/headers';
 import connectDB from '@/lib/mongodb';
 import TodoBoardModel, { ITodo, ITodoColumn, ITodoBoard } from '@/models/TodoList';
+import User from '@/models/User';
 
 // 添加锁定机制，避免并发处理同一个用户的请求
 const activeRequests = new Set<string>();
 
+// 获取用户会话信息
+async function getUserFromCookies(req: NextRequest) {
+  try {
+    // 获取用户信息
+    const cookieStore = cookies();
+    const userStr = cookieStore.get('user')?.value;
+    
+    if (!userStr) {
+      // 尝试从请求头中获取
+      const authHeader = req.headers.get('authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        try {
+          return JSON.parse(Buffer.from(token, 'base64').toString());
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    }
+    
+    return JSON.parse(userStr);
+  } catch (e) {
+    console.error('解析用户会话失败:', e);
+    return null;
+  }
+}
+
 // 获取用户的所有待办事项
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getUserFromCookies(req);
     
-    if (!session?.user?.id && !session?.user?.email) {
+    if (!user?.id && !user?.email) {
       return NextResponse.json({ error: '未授权访问' }, { status: 401 });
     }
     
-    const userId = session.user.id || session.user.email;
+    const userId = user.id || user.email;
     if (!userId) {
         return NextResponse.json({ error: '无法确定用户标识符' }, { status: 401 });
     }
     
     await connectDB();
+    
+    // 验证用户存在
+    const userExists = await User.findOne({ 
+      $or: [
+        { _id: user.id },
+        { email: user.email }
+      ]
+    });
+    
+    if (!userExists) {
+      return NextResponse.json({ error: '用户不存在' }, { status: 401 });
+    }
     
     let todoBoard = await TodoBoardModel.findOne({ userId });
     
@@ -53,13 +93,13 @@ export async function POST(req: NextRequest) {
   let userId: string | null | undefined = null;
   
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getUserFromCookies(req);
     
-    if (!session?.user?.id && !session?.user?.email) {
+    if (!user?.id && !user?.email) {
       return NextResponse.json({ error: '未授权访问' }, { status: 401 });
     }
     
-    userId = session.user.id || session.user.email;
+    userId = user.id || user.email;
     if (!userId) {
         return NextResponse.json({ error: '无法确定用户标识符' }, { status: 401 });
     }
@@ -71,6 +111,19 @@ export async function POST(req: NextRequest) {
     activeRequests.add(userId);
     
     await connectDB();
+    
+    // 验证用户存在
+    const userExists = await User.findOne({ 
+      $or: [
+        { _id: user.id },
+        { email: user.email }
+      ]
+    });
+    
+    if (!userExists) {
+      activeRequests.delete(userId);
+      return NextResponse.json({ error: '用户不存在' }, { status: 401 });
+    }
     
     const data = await req.json();
     

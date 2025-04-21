@@ -5,7 +5,11 @@
 // 设置用户会话
 export function setSession(user: {id: string, email: string}) {
   if (typeof window !== 'undefined') {
+    // 保存到localStorage
     localStorage.setItem('user', JSON.stringify(user));
+    
+    // 同时设置cookie，使服务器端可以读取
+    document.cookie = `user=${encodeURIComponent(JSON.stringify(user))}; path=/; max-age=${60*60*24*7}; SameSite=Lax`;
   }
 }
 
@@ -22,6 +26,9 @@ export function getSession() {
 export function clearSession() {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('user');
+    
+    // 清除cookie
+    document.cookie = 'user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
   }
 }
 
