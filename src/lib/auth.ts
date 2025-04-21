@@ -13,7 +13,9 @@ export const authOptions: NextAuthOptions = {
         password: { label: '密码', type: 'password' }
       },
       async authorize(credentials) {
+        console.log('[Auth] Authorize function started.'); // Log start
         if (!credentials?.email || !credentials?.password) {
+          console.log('[Auth] Authorize: Missing credentials.');
           return null;
         }
 
@@ -35,14 +37,16 @@ export const authOptions: NextAuthOptions = {
           }
           
           // Return a plain object with necessary fields for JWT/Session
-          return {
+          const authorizedUser = {
             id: user._id.toString(), // Convert ObjectId to string
             email: user.email,
             // Add other fields if needed by your callbacks, e.g., name: user.name
           };
+          console.log('[Auth] Authorize successful, returning:', authorizedUser);
+          return authorizedUser;
 
         } catch (error) {
-          console.error('Authorize error:', error);
+          console.error('[Auth] Authorize error caught:', error);
           return null;
         }
       }
@@ -57,21 +61,29 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     // Ensure the 'user' object passed to jwt has the 'id' property
-    async jwt({ token, user }) {
+    async jwt({ token, user, account, profile, isNewUser }) { // Log more params if needed
+      console.log('[Auth] JWT callback started. User:', user, 'Token:', token);
       if (user) {
         // Assuming your 'user' object from authorize has an 'id' property
         token.id = user.id; 
         token.email = user.email;
         // Add other properties if needed, e.g., token.name = user.name;
+        console.log('[Auth] JWT callback: User present, updated token:', token);
       }
+      console.log('[Auth] JWT callback finished, returning token:', token);
       return token;
     },
-    async session({ session, token }) {
-      if (session.user) {
+    async session({ session, token, user }) { // Log more params if needed
+      console.log('[Auth] Session callback started. Token:', token, 'Session:', session);
+      if (session.user && token.id) { // Check token.id exists
         session.user.id = token.id as string;
         session.user.email = token.email as string;
          // Add other properties if needed, e.g., session.user.name = token.name as string;
+         console.log('[Auth] Session callback: Token present, updated session:', session);
+      } else {
+        console.log('[Auth] Session callback: Session user or token.id missing.');
       }
+      console.log('[Auth] Session callback finished, returning session:', session);
       return session;
     },
   },
