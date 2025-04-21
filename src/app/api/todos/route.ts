@@ -13,24 +13,40 @@ async function getUserFromCookies(req: NextRequest) {
     // 获取用户信息
     const cookieStore = cookies();
     const userStr = cookieStore.get('user')?.value;
+    console.log('[API] 从Cookie获取用户:', userStr);
     
     if (!userStr) {
       // 尝试从请求头中获取
       const authHeader = req.headers.get('authorization');
+      console.log('[API] 尝试从请求头获取授权:', authHeader?.substring(0, 20) + '...');
+      
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
         try {
-          return JSON.parse(Buffer.from(token, 'base64').toString());
-        } catch {
+          const user = JSON.parse(Buffer.from(token, 'base64').toString());
+          console.log('[API] 从Bearer令牌解析出用户:', user);
+          return user;
+        } catch (e) {
+          console.error('[API] 解析Bearer令牌失败:', e);
           return null;
         }
       }
+      
+      // 尝试从localStorage中获取（仅在客户端可用）
+      console.log('[API] 无法从Cookie或请求头获取用户信息');
       return null;
     }
     
-    return JSON.parse(userStr);
+    try {
+      const user = JSON.parse(userStr);
+      console.log('[API] 成功解析Cookie中的用户:', user);
+      return user;
+    } catch (e) {
+      console.error('[API] 解析Cookie中的用户失败:', e);
+      return null;
+    }
   } catch (e) {
-    console.error('解析用户会话失败:', e);
+    console.error('[API] 解析用户会话失败:', e);
     return null;
   }
 }
