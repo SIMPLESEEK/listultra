@@ -34,11 +34,12 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
           
-          // Make sure the returned object matches the User type expected by JWT/Session callbacks
-          // Ensure it includes an 'id' property if needed by callbacks
-          // Example: return { id: user._id, email: user.email, name: user.name }; 
-          // Adjust according to your User model and callback needs.
-          return user; 
+          // Return a plain object with necessary fields for JWT/Session
+          return {
+            id: user._id.toString(), // Convert ObjectId to string
+            email: user.email,
+            // Add other fields if needed by your callbacks, e.g., name: user.name
+          };
 
         } catch (error) {
           console.error('Authorize error:', error);
