@@ -37,7 +37,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="max-w-md w-full p-6 bg-white rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold mb-6 text-center">牛马一生</h1>
+        <h1 className="text-2xl font-bold mb-6 text-center">祝您发大财！</h1>
         <h2 className="text-xl mb-6 text-center">请登录您的账号</h2>
         
         <form onSubmit={handleSubmit}>
